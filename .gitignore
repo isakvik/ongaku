@@ -1,0 +1,6 @@
+# pycharm
+.idea/
+
+# other
+*.log
+venv/
