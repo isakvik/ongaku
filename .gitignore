@@ -1,6 +1,9 @@
 # pycharm
 .idea/
 
+# python
+*__pycache__/
+
 # other
 *.log
 venv/

@@ -55,7 +55,7 @@ def get_command(trigger: str):
             continue
 
 
-def plugin(**options):
+def command(**options):
 
     def decorator(func):
         # create command
