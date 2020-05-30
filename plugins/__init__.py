@@ -1,6 +1,5 @@
 import inspect
 import os
-
 import discord
 from collections import namedtuple
 import importlib
@@ -8,7 +7,7 @@ import logging as log
 from traceback import format_exc
 
 Command = namedtuple("Command", "name aliases function description ")
-plugins = dict()
+loaded_plugins = dict()
 
 client = None
 
@@ -25,7 +24,7 @@ def load_plugin(name: str, package: str = "plugins"):
         log.error("couldn't import {package}/{name}\n{e}".format(name=name, package=package, e=format_exc(e)))
         return False
 
-    plugins[name] = cmd
+    loaded_plugins[name] = cmd
     return True
 
 
@@ -36,14 +35,34 @@ def load_plugins():
             load_plugin(name)
 
 
+async def call_reload(name: str):
+    """ Initiates reload of plugin. """
+    # See if the plugin has an on_reload() function, and call that
+    if hasattr(loaded_plugins[name], "on_reload"):
+        if callable(loaded_plugins[name].on_reload):
+            result = loaded_plugins[name].on_reload(name)
+            if inspect.isawaitable(result):
+                await result
+    else:
+        await on_reload(name)
+
+
+async def reload_plugins():
+    for plugin in loaded_plugins.values():
+        name = plugin.__name__.rsplit(".")[-1]
+        if not name.startswith("__"):
+            await call_reload(name)
+
+
+
 def get_plugin(name: str):
-    if name in plugins:
-        return plugins[name]
+    if name in loaded_plugins:
+        return loaded_plugins[name]
     return None
 
 
 def get_command(trigger: str):
-    for plugin in plugins.values():
+    for plugin in loaded_plugins.values():
         commands = getattr(plugin, "__commands", None)
         if not commands:
             continue
@@ -78,7 +97,23 @@ def command(**options):
         # Add the cmd attribute to this function, in order to get the command assigned to the function
         # setattr(func, "cmd", cmd)
 
-        log.info("Registered command {} from plugin {}".format(name, plugin.__name__))
+        log.info("Created command {} from {}".format(name, plugin.__name__))
         return func
 
     return decorator
+
+
+# Default commands
+
+def format_help(cmd: Command, guild: discord.Guild):
+    return "help i didnt understand"  # TODO
+
+
+async def on_reload(name: str):
+    if name in loaded_plugins:
+        # Remove all registered commands
+        if hasattr(loaded_plugins[name], "__commands"):
+            delattr(loaded_plugins[name], "__commands")
+
+        loaded_plugins[name] = importlib.reload(loaded_plugins[name])
+        log.debug("Reloaded plugin {}".format(name))

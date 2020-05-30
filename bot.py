@@ -61,9 +61,9 @@ def parse_given_args(command: plugins.Command, message: discord.Message, given_a
     if req_args <= len(args) + 1:
         complete = True
 
-    print(given_args)
-    print(args)
-    print(complete)
+    # print(given_args)
+    # print(args)
+    # print(complete)
     return args, complete
 
 
@@ -102,8 +102,20 @@ async def on_message(message: discord.Message):
 async def run_command(command: plugins.Command, message: discord.Message, *cmd_args):
     try:
         await command.function(message, *cmd_args)
+    except AssertionError as e:
+        # user error
+        await message.channel.send(str(e) or plugins.format_help(command, message.guild))
     except:
+        # uncaught error
         log.error(traceback.format_exc())
+        await message.channel.send("whoops, an unknown error occurred")
+
+
+@client.event
+async def on_disconnect():
+    # TODO: register event handlers in plugins instead
+    # plugins.recover_from_disconnection()
+    print("disconnected")
 
 
 def main():
