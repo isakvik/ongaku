@@ -31,6 +31,45 @@ async def on_ready():
     log.info("Logged in as {0.user} ({0.user.id})".format(client))
 
 
+@client.event
+async def on_message(message: discord.Message):
+    # wait until ready
+    await client.wait_until_ready()
+
+    # don't care for bots
+    if message.author.bot:
+        return
+
+    command_prefix = "."  # TODO hardkodet prefix
+    content = message.content[len(command_prefix):]
+
+    # make sure this is a command
+    if not message.content.startswith(command_prefix) or not content or content.startswith(" "):
+        return
+
+    content_words = content.split()
+    cmd_name, given_args = content_words[0], content_words[1:]
+
+    command = plugins.get_command(cmd_name)
+    if not command:
+        log.info("not a command: {}".format(cmd_name))
+        return
+
+    cmd_args, complete = parse_given_args(command, message, given_args)
+    if not complete:
+        log.info("missing arguments: {}".format(cmd_args))
+        return
+
+    client.loop.create_task(run_command(command, message, *cmd_args))
+
+
+@client.event
+async def on_disconnect():
+    # TODO: register event handlers in plugins instead
+    # plugins.recover_from_disconnection()
+    print("disconnected")
+
+
 def parse_given_args(command: plugins.Command, message: discord.Message, given_args):
     # Parse given arguments for command into list of arguments to use in function call
     signature = inspect.signature(command.function)
@@ -67,38 +106,6 @@ def parse_given_args(command: plugins.Command, message: discord.Message, given_a
     return args, complete
 
 
-@client.event
-async def on_message(message: discord.Message):
-    # wait until ready
-    await client.wait_until_ready()
-
-    # don't care for bots
-    if message.author.bot:
-        return
-
-    command_prefix = "."  # TODO hardkodet prefix
-    content = message.content[len(command_prefix):]
-
-    # make sure this is a command
-    if not message.content.startswith(command_prefix) or not content or content.startswith(" "):
-        return
-
-    content_words = content.split()
-    cmd_name, given_args = content_words[0], content_words[1:]
-
-    command = plugins.get_command(cmd_name)
-    if not command:
-        log.info("not a command: {}".format(cmd_name))
-        return
-
-    cmd_args, complete = parse_given_args(command, message, given_args)
-    if not complete:
-        log.info("missing arguments: {}".format(cmd_args))
-        return
-
-    client.loop.create_task(run_command(command, message, *cmd_args))
-
-
 async def run_command(command: plugins.Command, message: discord.Message, *cmd_args):
     try:
         await command.function(message, *cmd_args)
@@ -111,16 +118,9 @@ async def run_command(command: plugins.Command, message: discord.Message, *cmd_a
         await message.channel.send("whoops, an unknown error occurred")
 
 
-@client.event
-async def on_disconnect():
-    # TODO: register event handlers in plugins instead
-    # plugins.recover_from_disconnection()
-    print("disconnected")
-
-
 def main():
     parser = ArgumentParser()
-    parser.add_argument("--token", "-t", help="Specified login token")
+    parser.add_argument("--token", "-t", help="Specified login token", required=True)
     start_args = parser.parse_args()
 
     plugins.set_client(client)

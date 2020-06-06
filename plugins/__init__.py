@@ -17,6 +17,13 @@ def set_client(c: discord.client):
     client = c
 
 
+def load_plugins():
+    for plugin in os.listdir("plugins/"):
+        name = os.path.splitext(plugin)[0]
+        if not name.startswith("__"):
+            load_plugin(name)
+
+
 def load_plugin(name: str, package: str = "plugins"):
     try:
         cmd = importlib.import_module("{package}.{plugin}".format(plugin=name, package=package))
@@ -26,13 +33,6 @@ def load_plugin(name: str, package: str = "plugins"):
 
     loaded_plugins[name] = cmd
     return True
-
-
-def load_plugins():
-    for plugin in os.listdir("plugins/"):
-        name = os.path.splitext(plugin)[0]
-        if not name.startswith("__"):
-            load_plugin(name)
 
 
 async def call_reload(name: str):
@@ -52,7 +52,6 @@ async def reload_plugins():
         name = plugin.__name__.rsplit(".")[-1]
         if not name.startswith("__"):
             await call_reload(name)
-
 
 
 def get_plugin(name: str):
